@@ -9,22 +9,23 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
- 
+      height: 100%;
       background: black;
     }
     #container {
       position: relative;
-      
-      height: 100vh; 
+      width: 100vw;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
     }
     video, canvas {
       position: absolute;
- 
-      object-fit: cover;
-      transform: scaleX(-1);
+   
+      height: 100vh;
+      object-fit: contain;
+      transform: scaleX(-1) scale(1.0);
       z-index: 1;
     }
     #mask {
@@ -66,9 +67,9 @@
     const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
     hands.setOptions({
       maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.9,
-      minTrackingConfidence: 0.9
+      modelComplexity: 0,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
     });
 
     function onResults(results) {
@@ -104,8 +105,8 @@
       onFrame: async () => {
         await hands.send({ image: video });
       },
-      width: 1920,
-      height: 1080
+      width: 640,
+      height: 480
     });
     camera.start();
     hands.onResults(onResults);
@@ -117,6 +118,7 @@
     recognition.continuous = true;
     recognition.onresult = (event) => {
       const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      console.log('Voice command:', command);
       if (command.includes('close')) mask.style.display = 'block';
       if (command.includes('open')) mask.style.display = 'none';
     };
