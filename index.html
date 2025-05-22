@@ -4,7 +4,124 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hand HUD Tracker</title>
-<h1>h</h1>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    video, canvas {
+      position: absolute;
+   
+      height: 100vh;
+      object-fit: contain;
+      transform: scaleX(-1) scale(1.0);
+      z-index: 1;
+    }
+    #mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 2;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="mask"></div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const mask = document.getElementById('mask');
+    let angle = 0;
+
+    function resizeCanvas() {
+      if (video.videoWidth && video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+    }
+
+    const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+    hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
+    });
+
+    function onResults(results) {
+      if (!results.multiHandLandmarks) return;
+      resizeCanvas();
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      results.multiHandLandmarks.forEach(landmarks => {
+        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00f', lineWidth: 2 });
+        drawLandmarks(ctx, landmarks, { color: '#00f', lineWidth: 1 });
+        [8, 12, 16, 20].forEach(i => {
+          const p = landmarks[i];
+          drawHudCircle(p.x * canvas.width, p.y * canvas.height);
+        });
+      });
+
+      ctx.restore();
+      angle += 0.07;
+    }
+
+    function drawHudCircle(x, y) {
+      const radius = 12 + Math.sin(angle) * 2;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0,200,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.arc(x, y, radius, angle, angle + Math.PI * 1.5);
+      ctx.stroke();
+    }
+
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    });
+    camera.start();
+    hands.onResults(onResults);
+
+    // Voice command logic
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.onresult = (event) => {
+      const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      console.log('Voice command:', command);
+      if (command.includes('close')) mask.style.display = 'block';
+      if (command.includes('open')) mask.style.display = 'none';
+    };
+    recognition.start();
+  </script>
 </body>
 </html>
